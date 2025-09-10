@@ -15,8 +15,11 @@ def health_check():
         # Check database connection
         db_status = "connected"
         try:
-            db.session.execute('SELECT 1')
-        except Exception:
+            # Test database connection with a simple query
+            result = db.session.execute(db.text('SELECT 1')).fetchone()
+            if result is None:
+                db_status = "disconnected"
+        except Exception as e:
             db_status = "disconnected"
         
         # Check Telegram API accessibility
