@@ -17,16 +17,80 @@ channels_bp = Blueprint('channels', __name__, url_prefix='/api/channels')
 
 def get_bot_credentials(account_id):
     """
-    Get bot credentials for an account
-    In production, this would call the Auth Service
-    For now, we'll use dummy data or environment variables
+    Get bot credentials for an account from the Auth Service
+    
+    Args:
+        account_id: Account ID to get credentials for
+        
+    Returns:
+        dict: Bot credentials with bot_token and bot_id
+        
+    Raises:
+        Exception: If auth service is unavailable or account not found
     """
-    # TODO: Implement actual auth service integration
-    # This is a placeholder - in production, call auth service
-    return {
-        'bot_token': 'dummy_token',  # Would be fetched from auth service
-        'bot_id': 123456789  # Would be fetched from auth service
-    }
+    import requests
+    import os
+    
+    auth_service_url = os.getenv('TELEGIVE_AUTH_URL', 'https://web-production-ddd7e.up.railway.app')
+    
+    try:
+        # First, get account information to verify account exists and get bot_id
+        account_response = requests.get(
+            f"{auth_service_url}/api/auth/account/{account_id}",
+            timeout=10
+        )
+        
+        if account_response.status_code == 404:
+            raise Exception(f"Account {account_id} not found in auth service")
+        elif account_response.status_code != 200:
+            raise Exception(f"Auth service error: {account_response.status_code}")
+            
+        account_data = account_response.json()
+        
+        if not account_data.get('success'):
+            raise Exception(f"Auth service error: {account_data.get('error', 'Unknown error')}")
+            
+        account_info = account_data['account']
+        bot_id = account_info['bot_id']
+        
+        # Get the decrypted bot token
+        token_response = requests.get(
+            f"{auth_service_url}/api/auth/decrypt-token/{account_id}",
+            timeout=10
+        )
+        
+        if token_response.status_code == 404:
+            raise Exception(f"Bot token not found for account {account_id}")
+        elif token_response.status_code != 200:
+            raise Exception(f"Token decryption error: {token_response.status_code}")
+            
+        token_data = token_response.json()
+        
+        if not token_data.get('success'):
+            raise Exception(f"Token decryption error: {token_data.get('error', 'Unknown error')}")
+            
+        bot_token = token_data['bot_token']
+        
+        logger.info(f"Successfully retrieved bot credentials for account {account_id}")
+        
+        return {
+            'bot_token': bot_token,
+            'bot_id': bot_id,
+            'account_info': account_info  # Include additional account info
+        }
+        
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout connecting to auth service for account {account_id}")
+        raise Exception("Auth service timeout")
+    except requests.exceptions.ConnectionError:
+        logger.error(f"Connection error to auth service for account {account_id}")
+        raise Exception("Auth service unavailable")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error to auth service for account {account_id}: {str(e)}")
+        raise Exception(f"Auth service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting bot credentials for account {account_id}: {str(e)}")
+        raise
 
 @channels_bp.route('/setup', methods=['POST'])
 def setup_channel():
