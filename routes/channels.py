@@ -627,13 +627,26 @@ def verify_channel():
         if not channel_username.startswith('@'):
             channel_username = '@' + channel_username
         
+        logger.info(f"Verifying channel {channel_username} for bot_id {account_id}")
+        
+        # Validate account exists using bot_id (same as accounts endpoint)
+        from utils.account_lookup import validate_account_exists
+        if not validate_account_exists(account_id):
+            logger.warning(f"Account with bot_id {account_id} not found in database")
+            return jsonify({
+                'success': False,
+                'error': f'Account with bot_id {account_id} not found in database',
+                'code': 'ACCOUNT_NOT_FOUND'
+            }), 404
+        
         # Get bot credentials for the account
         try:
             credentials = get_bot_credentials(account_id)
             bot_token = credentials['bot_token']
             bot_id = credentials['bot_id']
+            logger.info(f"Got credentials for bot_id {account_id}: bot_id={bot_id}")
         except Exception as e:
-            logger.error(f"Failed to get bot credentials for account {account_id}: {str(e)}")
+            logger.error(f"Failed to get bot credentials for bot_id {account_id}: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': 'Account not found or invalid bot credentials',
