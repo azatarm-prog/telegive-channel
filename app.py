@@ -71,6 +71,20 @@ def create_app(config_name=None):
         try:
             db.create_all()
             logger.info("Database tables created successfully")
+            
+            # Run database migration for missing account
+            try:
+                from migrate_missing_account import run_migration
+                logger.info("Running database migration...")
+                migration_success = run_migration()
+                if migration_success:
+                    logger.info("Database migration completed successfully")
+                else:
+                    logger.warning("Database migration failed")
+            except Exception as migration_error:
+                logger.error(f"Migration error: {str(migration_error)}")
+                # Don't fail startup if migration fails
+                
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
     
