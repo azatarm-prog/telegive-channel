@@ -4,7 +4,7 @@ from flask import Flask, request, make_response
 from flask_cors import CORS
 from config.settings import config
 from models import db
-from routes import health_bp, channels_bp, accounts_bp
+from routes import health_bp, channels_bp, accounts_bp, monitoring_bp
 from tasks import initialize_periodic_validation, start_periodic_validation
 
 # Configure logging
@@ -52,6 +52,7 @@ def create_app(config_name=None):
     app.register_blueprint(health_bp)
     app.register_blueprint(channels_bp)
     app.register_blueprint(accounts_bp)
+    app.register_blueprint(monitoring_bp)
     
     # Add explicit OPTIONS handler for CORS preflight requests
     @app.before_request

@@ -21,6 +21,19 @@ from .permissions import (
     format_permissions_for_display
 )
 
+from .error_handling import (
+    ChannelServiceError,
+    AccountNotFoundError,
+    ChannelNotConfiguredError,
+    TelegramAPIError as TelegramError,
+    ChannelVerificationError,
+    create_error_response,
+    create_success_response,
+    log_account_lookup,
+    log_channel_operation,
+    get_troubleshooting_response
+)
+
 __all__ = [
     'get_channel_info',
     'get_bot_member_info', 
@@ -35,6 +48,16 @@ __all__ = [
     'compare_permissions',
     'validate_permission_update',
     'get_channel_permission_status',
-    'format_permissions_for_display'
+    'format_permissions_for_display',
+    'ChannelServiceError',
+    'AccountNotFoundError',
+    'ChannelNotConfiguredError',
+    'TelegramError',
+    'ChannelVerificationError',
+    'create_error_response',
+    'create_success_response',
+    'log_account_lookup',
+    'log_channel_operation',
+    'get_troubleshooting_response'
 ]
 
