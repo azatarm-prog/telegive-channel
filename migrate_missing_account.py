@@ -61,7 +61,36 @@ def run_migration():
                 print(f"      Username: {existing_account[2]}")
                 print(f"      Name: {existing_account[3]}")
                 print(f"      Active: {existing_account[4]}")
-                print(f"\n   ✅ Migration not needed - account exists!")
+                
+                # Check if bot_token is missing and update it
+                print(f"\n   🔍 Checking bot_token...")
+                token_result = db.session.execute(db.text("""
+                    SELECT bot_token, encrypted_token 
+                    FROM accounts 
+                    WHERE bot_id = :bot_id
+                """), {"bot_id": 262662172})
+                
+                token_row = token_result.fetchone()
+                bot_token = token_row[0] if token_row else None
+                encrypted_token = token_row[1] if token_row else None
+                
+                if not bot_token and not encrypted_token:
+                    print(f"   ❌ Bot token missing - updating account with token")
+                    db.session.execute(db.text("""
+                        UPDATE accounts 
+                        SET bot_token = :bot_token, updated_at = :updated_at
+                        WHERE bot_id = :bot_id
+                    """), {
+                        "bot_token": "262662172:AAGyAYVzuFFe23GagWY-FnP2NlAQRy_JsRk",
+                        "updated_at": datetime.now(),
+                        "bot_id": 262662172
+                    })
+                    db.session.commit()
+                    print(f"   ✅ Bot token updated successfully")
+                else:
+                    print(f"   ✅ Bot token exists: {'bot_token' if bot_token else 'encrypted_token'}")
+                
+                print(f"\n   ✅ Account is ready - no migration needed!")
                 return True
             
             print(f"   ❌ Account with bot_id 262662172 not found")
