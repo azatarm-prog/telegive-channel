@@ -656,21 +656,62 @@ def verify_channel():
         # Verify channel with Telegram API
         import requests
         
+        logger.info('🔍 === CHANNEL VERIFICATION DEBUG ===')
+        logger.info(f'📝 Request: account_id={account_id}, channel_username={channel_username}')
+        logger.info(f'👤 Account found: True')
+        logger.info(f'🔑 Bot token exists: {bot_token is not None}')
+        logger.info(f'🔑 Bot token format: {"VALID_FORMAT" if bot_token and ":" in str(bot_token) else "INVALID_FORMAT"}')
+        
+        # Test bot token with getMe first
+        logger.info('🤖 Testing bot token with getMe...')
+        try:
+            getme_response = requests.get(
+                f'https://api.telegram.org/bot{bot_token}/getMe',
+                timeout=10
+            )
+            getme_data = getme_response.json()
+            logger.info(f'🤖 getMe response: {getme_data}')
+            
+            if not getme_data.get('ok'):
+                logger.error('❌ CRITICAL: Bot token invalid - getMe failed')
+                return jsonify({
+                    'success': False,
+                    'code': 'INVALID_BOT_TOKEN',
+                    'error': 'Bot token is invalid',
+                    'telegram_error': getme_data
+                }), 400
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ CRITICAL: getMe request failed: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to validate bot token with Telegram',
+                'code': 'TELEGRAM_API_ERROR'
+            }), 500
+        
         # Get chat information
+        logger.info('📺 Testing channel access...')
+        chat_url = f'https://api.telegram.org/bot{bot_token}/getChat'
+        logger.info(f'📺 Telegram API URL: {chat_url.replace(bot_token, "TOKEN_HIDDEN")}')
+        logger.info(f'📺 Channel parameter: {channel_username}')
+        
         try:
             chat_response = requests.get(
-                f'https://api.telegram.org/bot{bot_token}/getChat',
+                chat_url,
                 params={'chat_id': channel_username},
                 timeout=10
             )
             chat_data = chat_response.json()
+            logger.info(f'📺 getChat response: {chat_data}')
             
             if not chat_data.get('ok'):
+                logger.error(f'❌ Channel access failed: {chat_data}')
                 return jsonify({
                     'success': False,
                     'channel_exists': False,
                     'error': 'Channel not found or is private',
-                    'code': 'CHANNEL_NOT_FOUND'
+                    'code': 'CHANNEL_NOT_FOUND',
+                    'telegram_error': chat_data
                 }), 400
             
         except requests.exceptions.RequestException as e:
@@ -682,18 +723,24 @@ def verify_channel():
             }), 500
         
         # Get bot member information
+        logger.info('👑 Checking bot admin status...')
+        bot_user_id = getme_data['result']['id']  # Use actual bot ID from getMe
+        logger.info(f'👑 Bot user ID: {bot_user_id}')
+        
         try:
             member_response = requests.get(
                 f'https://api.telegram.org/bot{bot_token}/getChatMember',
                 params={
                     'chat_id': channel_username,
-                    'user_id': bot_id
+                    'user_id': bot_user_id
                 },
                 timeout=10
             )
             member_data = member_response.json()
+            logger.info(f'👑 getChatMember response: {member_data}')
             
             if not member_data.get('ok'):
+                logger.warning(f'Bot member check failed: {member_data}')
                 return jsonify({
                     'success': False,
                     'channel_exists': True,
@@ -705,7 +752,11 @@ def verify_channel():
             member_info = member_data['result']
             is_admin = member_info['status'] in ['administrator', 'creator']
             
+            logger.info(f'👑 Bot status: {member_info["status"]}')
+            logger.info(f'👑 Is admin: {is_admin}')
+            
             if not is_admin:
+                logger.warning(f'Bot is not admin: status={member_info["status"]}')
                 return jsonify({
                     'success': False,
                     'channel_exists': True,
@@ -718,7 +769,10 @@ def verify_channel():
             can_post = member_info.get('can_post_messages', False)
             can_edit = member_info.get('can_edit_messages', False)
             
+            logger.info(f'👑 Permissions: post_messages={can_post}, edit_messages={can_edit}')
+            
             if not can_post or not can_edit:
+                logger.warning(f'Bot lacks required permissions: post={can_post}, edit={can_edit}')
                 return jsonify({
                     'success': False,
                     'channel_exists': True,
@@ -740,6 +794,10 @@ def verify_channel():
         # All checks passed - return success
         chat_info = chat_data['result']
         
+        logger.info('✅ Verification complete: SUCCESS')
+        logger.info(f'✅ Channel: {chat_info.get("title")} ({channel_username})')
+        logger.info(f'✅ Bot is admin with full permissions')
+        
         return jsonify({
             'success': True,
             'channel_exists': True,
@@ -754,10 +812,12 @@ def verify_channel():
         }), 200
     
     except Exception as e:
-        logger.error(f"Error in verify_channel: {str(e)}")
+        logger.error(f"💥 CRITICAL ERROR in verify_channel: {str(e)}")
+        logger.exception("Full exception details:")
         return jsonify({
             'success': False,
-            'error': 'Internal server error',
-            'code': 'INTERNAL_ERROR'
+            'error': 'Internal server error during channel verification',
+            'code': 'INTERNAL_ERROR',
+            'details': str(e)
         }), 500
 
