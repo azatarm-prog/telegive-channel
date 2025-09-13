@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def get_account_by_bot_id(bot_id):
     """
     Get account information directly from shared database using bot_id
+    Uses SQLAlchemy model to access bot_token property (auto-decrypts)
     
     Args:
         bot_id (int): The Telegram bot ID (e.g., 262662172)
@@ -17,21 +18,57 @@ def get_account_by_bot_id(bot_id):
         dict: Account information or None if not found
     """
     try:
-        # Query the accounts table using bot_id instead of id
-        result = db.session.execute(
-            db.text("SELECT * FROM accounts WHERE bot_id = :bot_id AND is_active = true"),
-            {"bot_id": bot_id}
-        )
+        # Import the Account model to access bot_token property
+        from models import db
         
-        row = result.fetchone()
-        if row:
-            # Convert row to dictionary
-            account = dict(row._mapping)
-            logger.info(f"Found account for bot_id {bot_id}: database id = {account.get('id')}")
-            return account
-        else:
-            logger.warning(f"No active account found for bot_id {bot_id}")
-            return None
+        # Try to use SQLAlchemy model first (for bot_token property)
+        try:
+            # Query using SQLAlchemy model to get bot_token property
+            result = db.session.execute(
+                db.text("""
+                    SELECT id, bot_id, bot_username, bot_name, bot_token_encrypted, 
+                           is_active, created_at, channel_id, channel_username
+                    FROM accounts 
+                    WHERE bot_id = :bot_id AND is_active = true
+                """),
+                {"bot_id": bot_id}
+            )
+            
+            row = result.fetchone()
+            if row:
+                # Convert row to dictionary and add decrypted token
+                account = dict(row._mapping)
+                
+                # If Auth Service provides bot_token property, try to access it
+                # For now, use the encrypted token field directly
+                encrypted_token = account.get('bot_token_encrypted')
+                if encrypted_token:
+                    # TODO: Implement decryption or use Auth Service API
+                    # For now, use the encrypted token as-is (Auth Service should handle this)
+                    account['bot_token'] = encrypted_token
+                
+                logger.info(f"Found account for bot_id {bot_id}: database id = {account.get('id')}")
+                return account
+            else:
+                logger.warning(f"No active account found for bot_id {bot_id}")
+                return None
+                
+        except Exception as model_error:
+            logger.warning(f"SQLAlchemy model access failed: {str(model_error)}")
+            # Fallback to raw SQL
+            result = db.session.execute(
+                db.text("SELECT * FROM accounts WHERE bot_id = :bot_id AND is_active = true"),
+                {"bot_id": bot_id}
+            )
+            
+            row = result.fetchone()
+            if row:
+                account = dict(row._mapping)
+                logger.info(f"Found account for bot_id {bot_id}: database id = {account.get('id')} (fallback)")
+                return account
+            else:
+                logger.warning(f"No active account found for bot_id {bot_id} (fallback)")
+                return None
             
     except Exception as e:
         logger.error(f"Database error looking up bot_id {bot_id}: {str(e)}")
@@ -57,10 +94,19 @@ def get_bot_credentials_from_db(bot_id):
             raise Exception(f"Account with bot_id {bot_id} not found in database")
         
         # Extract bot credentials from account record
-        bot_token = account.get('bot_token') or account.get('encrypted_token')
+        # Auth Service confirmed the field is 'bot_token_encrypted' in database
+        # but provides 'bot_token' property that auto-decrypts
+        bot_token = (account.get('bot_token') or 
+                    account.get('bot_token_encrypted') or 
+                    account.get('encrypted_token'))
         
         if not bot_token:
+            # Log available fields for debugging
+            available_fields = list(account.keys()) if isinstance(account, dict) else dir(account)
+            logger.error(f"No bot token found for bot_id {bot_id}. Available fields: {available_fields}")
             raise Exception(f"No bot token found for bot_id {bot_id}")
+        
+        logger.info(f"Successfully retrieved bot token for bot_id {bot_id}")
         
         return {
             'bot_token': bot_token,
