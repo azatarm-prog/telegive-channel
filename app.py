@@ -75,17 +75,28 @@ def create_app(config_name=None):
             logger.error(f"Error creating database tables: {str(e)}")
     
     # Initialize periodic validation
-    def get_bot_credentials(account_id):
+    def get_bot_credentials(bot_id):
         """
-        Get bot credentials for an account
-        TODO: Replace with actual auth service integration
+        Get bot credentials for an account using direct database access
+        
+        Args:
+            bot_id: Bot ID (e.g., 262662172) - this is the Telegram bot ID
+            
+        Returns:
+            dict: Bot credentials with bot_token and bot_id
         """
-        # This is a placeholder - in production, this would call the auth service
-        # For now, we'll return dummy credentials or use environment variables
-        return {
-            'bot_token': os.getenv('TELEGRAM_BOT_TOKEN', 'dummy_token'),
-            'bot_id': int(os.getenv('TELEGRAM_BOT_ID', '123456789'))
-        }
+        from utils.account_lookup import get_bot_credentials_from_db
+        try:
+            # Use direct database lookup instead of Auth Service API
+            logger.info(f"Getting bot credentials for bot_id {bot_id}")
+            return get_bot_credentials_from_db(bot_id)
+        except Exception as e:
+            logger.error(f"Error getting bot credentials for bot_id {bot_id}: {str(e)}")
+            # Fallback to environment variables for development
+            return {
+                'bot_token': os.getenv('TELEGRAM_BOT_TOKEN', 'dummy_token'),
+                'bot_id': int(os.getenv('TELEGRAM_BOT_ID', bot_id))
+            }
     
     # Initialize and start periodic validation
     try:

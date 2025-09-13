@@ -17,81 +17,25 @@ channels_bp = Blueprint('channels', __name__, url_prefix='/api/channels')
 # Rate limiting would be implemented here in production
 # For now, we'll add basic request validation
 
-def get_bot_credentials(account_id):
+def get_bot_credentials(bot_id):
     """
-    Get bot credentials for an account from the Auth Service
+    Get bot credentials for an account using direct database access
     
     Args:
-        account_id: Account ID to get credentials for
+        bot_id: Bot ID (e.g., 262662172) - this is the Telegram bot ID
         
     Returns:
         dict: Bot credentials with bot_token and bot_id
         
     Raises:
-        Exception: If auth service is unavailable or account not found
+        Exception: If account not found or database error
     """
-    import requests
-    import os
-    
-    auth_service_url = os.getenv('TELEGIVE_AUTH_URL', 'https://web-production-ddd7e.up.railway.app')
-    
     try:
-        # First, get account information to verify account exists and get bot_id
-        account_response = requests.get(
-            f"{auth_service_url}/api/auth/account/{account_id}",
-            timeout=10
-        )
-        
-        if account_response.status_code == 404:
-            raise Exception(f"Account {account_id} not found in auth service")
-        elif account_response.status_code != 200:
-            raise Exception(f"Auth service error: {account_response.status_code}")
-            
-        account_data = account_response.json()
-        
-        if not account_data.get('success'):
-            raise Exception(f"Auth service error: {account_data.get('error', 'Unknown error')}")
-            
-        account_info = account_data['account']
-        bot_id = account_info['bot_id']
-        
-        # Get the decrypted bot token
-        token_response = requests.get(
-            f"{auth_service_url}/api/auth/decrypt-token/{account_id}",
-            timeout=10
-        )
-        
-        if token_response.status_code == 404:
-            raise Exception(f"Bot token not found for account {account_id}")
-        elif token_response.status_code != 200:
-            raise Exception(f"Token decryption error: {token_response.status_code}")
-            
-        token_data = token_response.json()
-        
-        if not token_data.get('success'):
-            raise Exception(f"Token decryption error: {token_data.get('error', 'Unknown error')}")
-            
-        bot_token = token_data['bot_token']
-        
-        logger.info(f"Successfully retrieved bot credentials for account {account_id}")
-        
-        return {
-            'bot_token': bot_token,
-            'bot_id': bot_id,
-            'account_info': account_info  # Include additional account info
-        }
-        
-    except requests.exceptions.Timeout:
-        logger.error(f"Timeout connecting to auth service for account {account_id}")
-        raise Exception("Auth service timeout")
-    except requests.exceptions.ConnectionError:
-        logger.error(f"Connection error to auth service for account {account_id}")
-        raise Exception("Auth service unavailable")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error to auth service for account {account_id}: {str(e)}")
-        raise Exception(f"Auth service error: {str(e)}")
+        # Use direct database lookup instead of Auth Service API
+        logger.info(f"Getting bot credentials for bot_id {bot_id}")
+        return get_bot_credentials_from_db(bot_id)
     except Exception as e:
-        logger.error(f"Error getting bot credentials for account {account_id}: {str(e)}")
+        logger.error(f"Error getting bot credentials for bot_id {bot_id}: {str(e)}")
         raise
 
 @channels_bp.route('/setup', methods=['POST'])
@@ -109,13 +53,13 @@ def setup_channel():
                 'error': 'No JSON data provided'
             }), 400
         
-        account_id = data.get('account_id')
+        account_id = data.get('account_id')  # Note: This is actually the bot_id (e.g., 262662172)
         channel_username = data.get('channel_username')
         
         if not account_id:
             return jsonify({
                 'success': False,
-                'error': 'account_id is required'
+                'error': 'account_id (bot_id) is required'
             }), 400
         
         if not channel_username:
@@ -124,7 +68,8 @@ def setup_channel():
                 'error': 'channel_username is required'
             }), 400
         
-        # Get bot credentials (would call auth service in production)
+        # Get bot credentials using direct database access with bot_id
+        # account_id here is actually the bot_id (262662172)
         credentials = get_bot_credentials(account_id)
         bot_token = credentials['bot_token']
         bot_id = credentials['bot_id']
@@ -154,18 +99,21 @@ def validate_channel(account_id):
     """
     Validate existing channel configuration
     GET /api/channels/validate/{account_id}
+    
+    Note: account_id parameter is actually the bot_id (e.g., 262662172)
     """
     try:
-        # Get channel configuration
+        # Get channel configuration using bot_id
+        # account_id here is actually the bot_id (262662172)
         channel_config = ChannelConfig.query.filter_by(account_id=account_id).first()
         
         if not channel_config:
             return jsonify({
                 'valid': False,
-                'error': 'No channel configuration found for account'
+                'error': f'No channel configuration found for bot_id {account_id}'
             }), 404
         
-        # Get bot credentials
+        # Get bot credentials using direct database access
         credentials = get_bot_credentials(account_id)
         bot_token = credentials['bot_token']
         bot_id = credentials['bot_id']
