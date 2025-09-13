@@ -54,6 +54,11 @@ def create_app(config_name=None):
     app.register_blueprint(accounts_bp)
     app.register_blueprint(monitoring_bp)
     
+    # DEBUG ONLY - REMOVE IN PRODUCTION
+    from routes.debug import debug_bp
+    app.register_blueprint(debug_bp)
+    logger.warning("DEBUG ENDPOINTS ENABLED - REMOVE IN PRODUCTION")
+    
     # Add explicit OPTIONS handler for CORS preflight requests
     @app.before_request
     def handle_preflight():
