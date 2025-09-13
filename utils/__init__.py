@@ -34,6 +34,13 @@ from .error_handling import (
     get_troubleshooting_response
 )
 
+from .account_lookup import (
+    get_account_by_bot_id,
+    get_bot_credentials_from_db,
+    validate_account_exists,
+    get_account_database_id
+)
+
 __all__ = [
     'get_channel_info',
     'get_bot_member_info', 
@@ -58,6 +65,10 @@ __all__ = [
     'create_success_response',
     'log_account_lookup',
     'log_channel_operation',
-    'get_troubleshooting_response'
+    'get_troubleshooting_response',
+    'get_account_by_bot_id',
+    'get_bot_credentials_from_db',
+    'validate_account_exists',
+    'get_account_database_id'
 ]
 

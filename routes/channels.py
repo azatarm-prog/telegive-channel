@@ -8,6 +8,7 @@ from utils import (
     revalidate_channel,
     get_channel_permission_status
 )
+from utils.account_lookup import get_bot_credentials_from_db, validate_account_exists
 from services import ChannelValidatorService, PermissionCheckerService
 
 logger = logging.getLogger(__name__)
