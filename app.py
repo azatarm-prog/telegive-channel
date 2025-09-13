@@ -150,7 +150,7 @@ def create_app(config_name=None):
     def root():
         return {
             'service': app.config['SERVICE_NAME'],
-            'version': '1.0.0',
+            'version': '1.1.0',  # Updated version after bot_token fix
             'status': 'running',
             'endpoints': {
                 'health': '/health',
