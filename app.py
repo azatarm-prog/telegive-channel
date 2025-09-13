@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, request, make_response
 from flask_cors import CORS
 from config.settings import config
 from models import db
@@ -35,12 +35,34 @@ def create_app(config_name=None):
     # Initialize extensions
     db.init_app(app)
     
-    # Enable CORS for all routes
-    CORS(app, origins="*")
+    # Enable CORS for dashboard integration
+    CORS(app, 
+         origins=[
+             'https://telegive-dashboard-production.up.railway.app',
+             'http://localhost:5173',  # For development
+             'http://localhost:3000',  # Alternative dev port
+             'https://telegive-dashboard-*.up.railway.app'  # For staging environments
+         ],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+         supports_credentials=True,
+         max_age=86400)
     
     # Register blueprints
     app.register_blueprint(health_bp)
     app.register_blueprint(channels_bp)
+    
+    # Add explicit OPTIONS handler for CORS preflight requests
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = make_response()
+            response.headers.add("Access-Control-Allow-Origin", request.headers.get('Origin', '*'))
+            response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization,Accept,X-Requested-With")
+            response.headers.add('Access-Control-Allow-Methods', "GET,POST,PUT,DELETE,OPTIONS")
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+            response.headers.add('Access-Control-Max-Age', '86400')
+            return response
     
     # Create database tables
     with app.app_context():
