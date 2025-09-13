@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 import logging
+from datetime import datetime
 from models import ChannelConfig, db
 from utils import (
     setup_channel_configuration,
@@ -445,5 +446,356 @@ def list_channels():
         return jsonify({
             'success': False,
             'error': f'Error listing channels: {str(e)}'
+        }), 500
+
+
+
+# Dashboard Integration Endpoints
+
+@channels_bp.route('/accounts/<int:account_id>/channel', methods=['GET'])
+def get_account_channel(account_id):
+    """
+    Get channel configuration for a specific account
+    GET /api/channels/accounts/{account_id}/channel
+    """
+    try:
+        # Get bot credentials for the account
+        try:
+            credentials = get_bot_credentials(account_id)
+        except Exception as e:
+            logger.error(f"Failed to get bot credentials for account {account_id}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Account not found or invalid',
+                'code': 'ACCOUNT_NOT_FOUND'
+            }), 404
+        
+        # Get channel configuration from database
+        channel_config = ChannelConfig.query.filter_by(account_id=account_id).first()
+        
+        if not channel_config:
+            return jsonify({
+                'success': False,
+                'error': 'No channel configuration found',
+                'code': 'CHANNEL_NOT_CONFIGURED'
+            }), 404
+        
+        # Return channel configuration
+        return jsonify({
+            'success': True,
+            'channel': {
+                'id': channel_config.id,
+                'account_id': channel_config.account_id,
+                'channel_username': channel_config.channel_username,
+                'channel_title': channel_config.channel_title,
+                'channel_id': channel_config.channel_id,
+                'is_verified': channel_config.is_validated,
+                'verified_at': channel_config.last_validation_at.isoformat() + 'Z' if channel_config.last_validation_at else None,
+                'created_at': channel_config.created_at.isoformat() + 'Z' if channel_config.created_at else None,
+                'updated_at': channel_config.updated_at.isoformat() + 'Z' if channel_config.updated_at else None
+            }
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error in get_account_channel for account {account_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+@channels_bp.route('/accounts/<int:account_id>/channel', methods=['PUT'])
+def save_account_channel(account_id):
+    """
+    Save or update channel configuration for a specific account
+    PUT /api/channels/accounts/{account_id}/channel
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided',
+                'code': 'INVALID_REQUEST'
+            }), 400
+        
+        # Get bot credentials for the account
+        try:
+            credentials = get_bot_credentials(account_id)
+        except Exception as e:
+            logger.error(f"Failed to get bot credentials for account {account_id}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Account not found or invalid',
+                'code': 'ACCOUNT_NOT_FOUND'
+            }), 404
+        
+        # Validate required fields
+        channel_username = data.get('channel_username')
+        channel_title = data.get('channel_title')
+        
+        if not channel_username:
+            return jsonify({
+                'success': False,
+                'error': 'Channel username is required',
+                'code': 'MISSING_CHANNEL_USERNAME'
+            }), 400
+        
+        # Validate channel username format
+        if not channel_username.startswith('@'):
+            channel_username = '@' + channel_username
+        
+        # Check if channel configuration already exists
+        channel_config = ChannelConfig.query.filter_by(account_id=account_id).first()
+        
+        if channel_config:
+            # Update existing configuration
+            channel_config.channel_username = channel_username
+            channel_config.channel_title = channel_title or channel_config.channel_title
+            channel_config.is_validated = data.get('is_verified', False)
+            channel_config.updated_at = datetime.utcnow()
+        else:
+            # Create new configuration
+            channel_config = ChannelConfig(
+                account_id=account_id,
+                channel_username=channel_username,
+                channel_title=channel_title or 'Unknown Channel',
+                is_validated=data.get('is_verified', False),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.session.add(channel_config)
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Channel configuration saved successfully',
+            'channel': {
+                'id': channel_config.id,
+                'account_id': channel_config.account_id,
+                'channel_username': channel_config.channel_username,
+                'channel_title': channel_config.channel_title,
+                'channel_id': channel_config.channel_id,
+                'is_verified': channel_config.is_validated,
+                'verified_at': channel_config.last_validation_at.isoformat() + 'Z' if channel_config.last_validation_at else None,
+                'created_at': channel_config.created_at.isoformat() + 'Z' if channel_config.created_at else None,
+                'updated_at': channel_config.updated_at.isoformat() + 'Z' if channel_config.updated_at else None
+            }
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in save_account_channel for account {account_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+@channels_bp.route('/accounts/<int:account_id>/channel', methods=['DELETE'])
+def delete_account_channel(account_id):
+    """
+    Delete channel configuration for a specific account
+    DELETE /api/channels/accounts/{account_id}/channel
+    """
+    try:
+        # Get bot credentials for the account
+        try:
+            credentials = get_bot_credentials(account_id)
+        except Exception as e:
+            logger.error(f"Failed to get bot credentials for account {account_id}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Account not found or invalid',
+                'code': 'ACCOUNT_NOT_FOUND'
+            }), 404
+        
+        # Find channel configuration
+        channel_config = ChannelConfig.query.filter_by(account_id=account_id).first()
+        
+        if not channel_config:
+            return jsonify({
+                'success': False,
+                'error': 'No channel configuration found to delete',
+                'code': 'CHANNEL_NOT_CONFIGURED'
+            }), 404
+        
+        # Delete the configuration
+        db.session.delete(channel_config)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Channel configuration deleted successfully'
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in delete_account_channel for account {account_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR'
+        }), 500
+
+@channels_bp.route('/verify', methods=['POST'])
+def verify_channel():
+    """
+    Verify that the bot has admin rights in the specified channel
+    POST /api/channels/verify
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided',
+                'code': 'INVALID_REQUEST'
+            }), 400
+        
+        channel_username = data.get('channel_username')
+        account_id = data.get('account_id')
+        
+        if not channel_username:
+            return jsonify({
+                'success': False,
+                'error': 'Channel username is required',
+                'code': 'MISSING_CHANNEL_USERNAME'
+            }), 400
+        
+        if not account_id:
+            return jsonify({
+                'success': False,
+                'error': 'Account ID is required',
+                'code': 'MISSING_ACCOUNT_ID'
+            }), 400
+        
+        # Ensure channel username starts with @
+        if not channel_username.startswith('@'):
+            channel_username = '@' + channel_username
+        
+        # Get bot credentials for the account
+        try:
+            credentials = get_bot_credentials(account_id)
+            bot_token = credentials['bot_token']
+            bot_id = credentials['bot_id']
+        except Exception as e:
+            logger.error(f"Failed to get bot credentials for account {account_id}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Account not found or invalid bot credentials',
+                'code': 'ACCOUNT_NOT_FOUND'
+            }), 404
+        
+        # Verify channel with Telegram API
+        import requests
+        
+        # Get chat information
+        try:
+            chat_response = requests.get(
+                f'https://api.telegram.org/bot{bot_token}/getChat',
+                params={'chat_id': channel_username},
+                timeout=10
+            )
+            chat_data = chat_response.json()
+            
+            if not chat_data.get('ok'):
+                return jsonify({
+                    'success': False,
+                    'channel_exists': False,
+                    'error': 'Channel not found or is private',
+                    'code': 'CHANNEL_NOT_FOUND'
+                }), 400
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error calling Telegram API for chat info: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to verify channel with Telegram',
+                'code': 'TELEGRAM_API_ERROR'
+            }), 500
+        
+        # Get bot member information
+        try:
+            member_response = requests.get(
+                f'https://api.telegram.org/bot{bot_token}/getChatMember',
+                params={
+                    'chat_id': channel_username,
+                    'user_id': bot_id
+                },
+                timeout=10
+            )
+            member_data = member_response.json()
+            
+            if not member_data.get('ok'):
+                return jsonify({
+                    'success': False,
+                    'channel_exists': True,
+                    'bot_is_admin': False,
+                    'error': 'Bot is not a member of this channel',
+                    'code': 'BOT_NOT_MEMBER'
+                }), 400
+            
+            member_info = member_data['result']
+            is_admin = member_info['status'] in ['administrator', 'creator']
+            
+            if not is_admin:
+                return jsonify({
+                    'success': False,
+                    'channel_exists': True,
+                    'bot_is_admin': False,
+                    'error': 'Bot is not an administrator in this channel',
+                    'code': 'BOT_NOT_ADMIN'
+                }), 400
+            
+            # Check specific permissions
+            can_post = member_info.get('can_post_messages', False)
+            can_edit = member_info.get('can_edit_messages', False)
+            
+            if not can_post or not can_edit:
+                return jsonify({
+                    'success': False,
+                    'channel_exists': True,
+                    'bot_is_admin': True,
+                    'bot_can_post_messages': can_post,
+                    'bot_can_edit_messages': can_edit,
+                    'error': 'Bot lacks required permissions (post_messages, edit_messages)',
+                    'code': 'INSUFFICIENT_PERMISSIONS'
+                }), 400
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error calling Telegram API for member info: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to verify bot permissions with Telegram',
+                'code': 'TELEGRAM_API_ERROR'
+            }), 500
+        
+        # All checks passed - return success
+        chat_info = chat_data['result']
+        
+        return jsonify({
+            'success': True,
+            'channel_exists': True,
+            'bot_is_admin': True,
+            'bot_can_post_messages': True,
+            'bot_can_edit_messages': True,
+            'channel_title': chat_info.get('title', 'Unknown Channel'),
+            'channel_id': chat_info.get('id'),
+            'member_count': chat_info.get('members_count', 0),
+            'channel_type': chat_info.get('type', 'channel'),
+            'verified_at': datetime.utcnow().isoformat() + 'Z'
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error in verify_channel: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'code': 'INTERNAL_ERROR'
         }), 500
 
