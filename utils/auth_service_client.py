@@ -15,7 +15,7 @@ class AuthServiceClient:
     
     def __init__(self):
         self.base_url = os.getenv('AUTH_SERVICE_URL', 'https://web-production-ddd7e.up.railway.app')
-        self.service_token = os.getenv('AUTH_SERVICE_SECRET', 'ch4nn3l_s3rv1c3_t0k3n_2025_s3cur3_r4nd0m_str1ng')
+        self.service_token = os.getenv('AUTH_SERVICE_TOKEN', 'ch4nn3l_s3rv1c3_t0k3n_2025_s3cur3_r4nd0m_str1ng')
         self.headers = {
             'Content-Type': 'application/json',
             'X-Service-Token': self.service_token
