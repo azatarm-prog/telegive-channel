@@ -75,6 +75,19 @@ def create_app(config_name=None):
             # Database migration no longer needed - using Auth Service API
             logger.info("Using Auth Service API - no database migration required")
             
+            # Ensure channel_configs table exists for saving channel configurations
+            try:
+                from create_channel_configs_table import run_migration
+                logger.info("Running channel_configs table migration...")
+                migration_success = run_migration()
+                if migration_success:
+                    logger.info("Channel configs table migration completed successfully")
+                else:
+                    logger.warning("Channel configs table migration failed")
+            except Exception as migration_error:
+                logger.error(f"Channel configs migration error: {str(migration_error)}")
+                # Don't fail startup if migration fails
+            
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
     
