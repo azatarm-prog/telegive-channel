@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Service tokens for inter-service communication
 VALID_SERVICE_TOKENS = {
-    'giveaway_service': os.getenv('GIVEAWAY_SERVICE_TOKEN', 'wk-HIYEuDdfm8lr05cW6Y-sxXkng8y2Ib7U7IVASHMcSCobknXRbhJgp60-fyxKF'),
+    'giveaway_service': os.getenv('CHANNEL_SERVICE_TOKEN', 'ch4nn3l_s3rv1c3_t0k3n_2025_s3cur3_r4nd0m_str1ng'),
     'auth_service': os.getenv('AUTH_SERVICE_TOKEN', 'ch4nn3l_s3rv1c3_t0k3n_2025_s3cur3_r4nd0m_str1ng')
 }
 
