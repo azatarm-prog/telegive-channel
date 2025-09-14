@@ -43,7 +43,12 @@ class AuthServiceClient:
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"✅ Account found in Auth Service for bot_id: {bot_id}")
-                return data
+                # Extract account data from nested response
+                if 'account' in data:
+                    return data['account']  # Return the account object directly
+                else:
+                    logger.warning(f"⚠️ Unexpected response structure: {data}")
+                    return data  # Fallback to full response
             elif response.status_code == 404:
                 logger.warning(f"❌ Account not found in Auth Service for bot_id: {bot_id}")
                 return None
