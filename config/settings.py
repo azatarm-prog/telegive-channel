@@ -27,11 +27,12 @@ class Config:
     VALIDATION_TIMEOUT = int(os.getenv('VALIDATION_TIMEOUT', 10))
     PERIODIC_VALIDATION_INTERVAL = int(os.getenv('PERIODIC_VALIDATION_INTERVAL', 3600))
     
-    # Required permissions for bot in channels
+    # Required permissions for bot in channels (based on actual Telegram API fields)
     REQUIRED_PERMISSIONS = [
         'can_post_messages',
-        'can_edit_messages',
-        'can_send_media_messages'
+        'can_edit_messages'
+        # Removed 'can_send_media_messages' - not a separate field in Telegram API
+        # Media sending is included in can_post_messages for administrators
     ]
 
 class DevelopmentConfig(Config):
