@@ -54,11 +54,6 @@ def create_app(config_name=None):
     app.register_blueprint(accounts_bp)
     app.register_blueprint(monitoring_bp)
     
-    # DEBUG ONLY - REMOVE IN PRODUCTION
-    from routes.debug import debug_bp
-    app.register_blueprint(debug_bp)
-    logger.warning("DEBUG ENDPOINTS ENABLED - REMOVE IN PRODUCTION")
-    
     # Add explicit OPTIONS handler for CORS preflight requests
     @app.before_request
     def handle_preflight():
@@ -77,19 +72,9 @@ def create_app(config_name=None):
             db.create_all()
             logger.info("Database tables created successfully")
             
-            # Run database migration for missing account
-            try:
-                from migrate_missing_account import run_migration
-                logger.info("Running database migration...")
-                migration_success = run_migration()
-                if migration_success:
-                    logger.info("Database migration completed successfully")
-                else:
-                    logger.warning("Database migration failed")
-            except Exception as migration_error:
-                logger.error(f"Migration error: {str(migration_error)}")
-                # Don't fail startup if migration fails
-                
+            # Database migration no longer needed - using Auth Service API
+            logger.info("Using Auth Service API - no database migration required")
+            
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
     
