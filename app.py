@@ -77,15 +77,15 @@ def create_app(config_name=None):
             
             # Ensure channel_configs table exists for saving channel configurations
             try:
-                from create_channel_configs_table import run_migration
-                logger.info("Running channel_configs table migration...")
-                migration_success = run_migration()
+                from simple_table_creation import run_simple_migration
+                logger.info("Running simple table creation for channel configs...")
+                migration_success = run_simple_migration()
                 if migration_success:
-                    logger.info("Channel configs table migration completed successfully")
+                    logger.info("Channel configs table creation completed successfully")
                 else:
-                    logger.warning("Channel configs table migration failed")
+                    logger.warning("Channel configs table creation failed")
             except Exception as migration_error:
-                logger.error(f"Channel configs migration error: {str(migration_error)}")
+                logger.error(f"Table creation error: {str(migration_error)}")
                 # Don't fail startup if migration fails
             
         except Exception as e:

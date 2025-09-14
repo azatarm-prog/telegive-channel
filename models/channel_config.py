@@ -31,7 +31,7 @@ class ChannelConfig(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Unique constraint: one channel per account
+    # Unique constraint: one channel per account (removed foreign key constraint)
     __table_args__ = (
         db.UniqueConstraint('account_id', name='uq_channel_configs_account_id'),
     )
