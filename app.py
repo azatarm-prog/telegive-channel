@@ -88,6 +88,19 @@ def create_app(config_name=None):
                 logger.error(f"Table creation error: {str(migration_error)}")
                 # Don't fail startup if migration fails
             
+            # Fix validation history table schema
+            try:
+                from fix_validation_history_table import fix_validation_history_table
+                logger.info("Fixing validation history table schema...")
+                fix_success = fix_validation_history_table()
+                if fix_success:
+                    logger.info("Validation history table fix completed successfully")
+                else:
+                    logger.warning("Validation history table fix failed")
+            except Exception as fix_error:
+                logger.error(f"Validation history table fix error: {str(fix_error)}")
+                # Don't fail startup if fix fails
+            
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
     

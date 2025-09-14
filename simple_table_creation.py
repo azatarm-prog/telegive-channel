@@ -67,16 +67,16 @@ def create_tables_simple():
             ON channel_configs(channel_id);
         """))
         
-        # Create channel_validation_history table
+        # Create channel_validation_history table (matching SQLAlchemy model)
         db.session.execute(db.text("""
             CREATE TABLE IF NOT EXISTS channel_validation_history (
                 id BIGSERIAL PRIMARY KEY,
                 channel_config_id BIGINT NOT NULL,
                 validation_type VARCHAR(50) NOT NULL,
-                result BOOLEAN NOT NULL,
+                validation_result BOOLEAN NOT NULL,
                 error_message TEXT,
-                permissions JSONB,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                permissions_snapshot JSONB,
+                validated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         """))
         
