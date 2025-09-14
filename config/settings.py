@@ -23,6 +23,11 @@ class Config:
     TELEGIVE_AUTH_URL = os.getenv('TELEGIVE_AUTH_URL', 'http://localhost:8001')
     TELEGIVE_GIVEAWAY_URL = os.getenv('TELEGIVE_GIVEAWAY_URL', 'http://localhost:8003')
     
+    # Service-to-Service Authentication
+    AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'https://web-production-ddd7e.up.railway.app')
+    AUTH_SERVICE_TOKEN = os.getenv('AUTH_SERVICE_TOKEN', 'ch4nn3l_s3rv1c3_t0k3n_2025_s3cur3_r4nd0m_str1ng')
+    GIVEAWAY_SERVICE_TOKEN = os.getenv('GIVEAWAY_SERVICE_TOKEN', 'wk-HIYEuDdfm8lr05cW6Y-sxXkng8y2Ib7U7IVASHMcSCobknXRbhJgp60-fyxKF')
+    
     # Validation Settings
     VALIDATION_TIMEOUT = int(os.getenv('VALIDATION_TIMEOUT', 10))
     PERIODIC_VALIDATION_INTERVAL = int(os.getenv('PERIODIC_VALIDATION_INTERVAL', 3600))

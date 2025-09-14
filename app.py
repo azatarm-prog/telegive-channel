@@ -54,6 +54,10 @@ def create_app(config_name=None):
     app.register_blueprint(accounts_bp)
     app.register_blueprint(monitoring_bp)
     
+    # Register service API blueprint for inter-service communication
+    from routes.service_api import service_api_bp
+    app.register_blueprint(service_api_bp)
+    
     # Add explicit OPTIONS handler for CORS preflight requests
     @app.before_request
     def handle_preflight():
